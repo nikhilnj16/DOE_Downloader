@@ -69,37 +69,36 @@ URLS: dict[str, dict[str, list[str]]] = {
     "nevada": {
 
         "test_scores": [
-            # Nevada Report Card — downloadable assessment data
-            "https://nevadareportcard.nv.gov/DI/DownloadData",
-            # Statewide data downloads (NDE)
-            "https://doe.nv.gov/Stats_Data/Statewide_Data/",
-            # CRT / SBAC results
-            "https://doe.nv.gov/Stats_Data/Statewide_Data/Test_Results/",
+            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
+            # doe.nv.gov is a Next.js SPA; raw HTML does not contain file links.
+            # We query this API once, filter by test-score keywords, and download matches.
+            # Covers: SBAC, ACT, NAA, NAEP, WIDA, science assessments, etc.
+            "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
 
         "financials": [
-            # Per-pupil expenditure and district financial reports
-            "https://doe.nv.gov/Finance_Administration/",
-            "https://doe.nv.gov/Finance_Administration/Financial_Reports/",
-            "https://doe.nv.gov/Finance_Administration/Per_Pupil_Expenditure/",
+            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
+            # Covers: per-pupil expenditure, district budgets, fiscal reports, grants.
+            "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
 
         "teacher_records": [
-            # Licensed educator counts and experience data
-            "https://doe.nv.gov/Stats_Data/Statewide_Data/Educator_Data/",
-            "https://doe.nv.gov/Licensing/Statistics/",
+            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
+            # Covers: educator licensure, teacher counts, staffing, NEPF data.
+            "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
 
         "enrollment": [
-            # Enrollment by grade, school, and district
-            "https://doe.nv.gov/Stats_Data/Statewide_Data/Enrollment/",
-            "https://nevadareportcard.nv.gov/DI/DownloadData",
+            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
+            # The doe.nv.gov site is a Next.js SPA; file links are not in raw HTML.
+            # We query this API once, filter by enrollment keywords, and download matches.
+            "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
 
         "suspensions": [
-            # Discipline / suspension data
-            "https://doe.nv.gov/Stats_Data/Statewide_Data/Discipline/",
-            "https://nevadareportcard.nv.gov/DI/DownloadData",
+            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
+            # Covers: discipline data, suspension reports, behavioral health data.
+            "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
     },
 
