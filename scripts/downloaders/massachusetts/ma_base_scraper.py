@@ -3,6 +3,9 @@ import requests
 from bs4 import BeautifulSoup
 import time
 from pathlib import Path
+import itertools
+import random
+import re
 
 class MABaseScraper:
     def __init__(self):
@@ -15,19 +18,20 @@ class MABaseScraper:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
         })
         
-    def download_report(self, report_endpoint: str, output_dir: str, dataset_name: str, report_type: str = 'District'):
+    def download_report(self, report_endpoint: str, output_dir: str, dataset_name: str, report_type: str = 'District', limit: int = None):
         """
-        Downloads the specified ASP.NET WebForm report for all available years.
+        Downloads the specified ASP.NET WebForm report for random combinations of filters.
         
         :param report_endpoint: The endpoint e.g., 'enrollmentbygrade.aspx'
         :param output_dir: The directory to save the files (e.g., 'data/massachusetts/raw/enrollment/')
         :param dataset_name: Prefix for the downloaded files
-        :param report_type: 'District', 'School', or 'State'
+        :param report_type: Used as a fallback or default, but combinations handle all selects.
+        :param limit: Maximum number of random combinations to download (e.g., 10 for testing)
         """
         url = self.base_url + report_endpoint
         print(f"[{dataset_name}] Accessing {url} ...")
         
-        # 1. GET request to fetch viewstate and available years
+        # 1. GET request to fetch viewstate and valid options
         resp = self.session.get(url)
         if resp.status_code != 200:
             print(f"[{dataset_name}] Failed to load page: HTTP {resp.status_code}")
@@ -43,62 +47,88 @@ class MABaseScraper:
             print(f"[{dataset_name}] Could not find ASP.NET hidden fields. Ensure this is a WebForm page.")
             return
 
-        # Parse available years
-        year_select = soup.find('select', {'id': 'ctl00_ContentPlaceHolder1_ddYear'})
-        if not year_select:
-            print(f"[{dataset_name}] Could not find year dropdown.")
-            return
-            
-        years = [option['value'] for option in year_select.find_all('option')]
-        print(f"[{dataset_name}] Found {len(years)} available years: {min(years)} to {max(years)}")
-        
-        # Find the correct value for the requested report_type
-        report_type_val = report_type
-        type_select = soup.find('select', {'id': 'ctl00_ContentPlaceHolder1_ddReportType'})
-        if type_select:
-            for option in type_select.find_all('option'):
-                if option.text.strip().lower() == report_type.lower():
-                    report_type_val = option['value']
-                    break
-        
-        # Build base data payload with ALL select tags to satisfy ASP.NET
+        # Build base data payload
         base_data = {
             '__VIEWSTATE': viewstate,
             '__VIEWSTATEGENERATOR': viewstategen,
             '__EVENTVALIDATION': eventvalidation,
             'ctl00$ContentPlaceHolder1$hfExport': 'Excel'
         }
+
+        # Dynamically extract all <select> tags and their options
+        selects_options = {}
+        friendly_names = {}
         
         for select in soup.find_all('select'):
             name = select.get('name')
             if not name: continue
             
-            # Find the selected option or fallback to the first option
-            selected = select.find('option', selected=True)
-            if selected and selected.has_attr('value'):
-                val = selected['value']
-            elif select.find('option') and select.find('option').has_attr('value'):
-                val = select.find('option')['value']
-            else:
-                val = ''
-                
-            base_data[name] = val
-            
+            options = []
+            for opt in select.find_all('option'):
+                val = opt.get('value')
+                if val is not None and val != '':
+                    options.append(val)
+                    # Use a short, sanitized friendly name
+                    raw_text = opt.text.strip()
+                    friendly = re.sub(r'[^a-zA-Z0-9]+', '_', raw_text).strip('_').lower()
+                    if not friendly:
+                        friendly = "opt"
+                    friendly_names[val] = friendly
+                    
+            if options:
+                selects_options[name] = options
+
+        if not selects_options:
+            print(f"[{dataset_name}] No select dropdowns found. Cannot generate combinations.")
+            return
+
+        select_names = list(selects_options.keys())
+        options_lists = [selects_options[k] for k in select_names]
+        
+        # Generate Cartesian product
+        combinations = list(itertools.product(*options_lists))
+        print(f"[{dataset_name}] Found {len(combinations)} total possible filter combinations.")
+
+        if limit is not None and limit < len(combinations):
+            print(f"[{dataset_name}] Randomly sampling {limit} combinations...")
+            # Use a fixed seed based on dataset_name to be reproducible but different per dataset
+            random.seed(hash(dataset_name))
+            sample = random.sample(combinations, limit)
+        else:
+            sample = combinations
+
         # Create output directory
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         
-        # 2. Iterate and POST to download Excel for each year
-        for year in years:
-            print(f"  Downloading {year}...")
-            
+        # 2. Iterate and POST to download Excel for each combination
+        for i, combo in enumerate(sample):
             data = base_data.copy()
-            if type_select and type_select.get('name'):
-                data[type_select.get('name')] = report_type_val
-            data['ctl00$ContentPlaceHolder1$ddYear'] = year
+            
+            # Populate data payload and build dynamic filename
+            filename_parts = [dataset_name]
+            for j, select_name in enumerate(select_names):
+                val = combo[j]
+                data[select_name] = val
+                friendly_text = friendly_names[val]
+                # Try to keep filename from getting insanely long by truncating very long parts
+                if len(friendly_text) > 20:
+                    friendly_text = friendly_text[:20]
+                filename_parts.append(friendly_text)
+            
+            # Some reports might have no data or just be very generic, 
+            # so we ensure it's a unique name by appending index if needed, but the combo should be unique
+            filename = "_".join(filename_parts) + ".xlsx"
+            filepath = os.path.join(output_dir, filename)
+            
+            print(f"  Downloading [{i+1}/{len(sample)}]: {filename}")
             
             post_resp = self.session.post(url, data=data)
             
-            if post_resp.status_code == 200 and 'Excel' in post_resp.headers.get('Content-Type', '') or 'spreadsheet' in post_resp.headers.get('Content-Type', '') or post_resp.headers.get('Content-Disposition', '').find('attachment') != -1:
+            content_type = post_resp.headers.get('Content-Type', '').lower()
+            is_excel = 'excel' in content_type or 'spreadsheet' in content_type or 'openxmlformats' in content_type
+            is_attachment = 'attachment' in post_resp.headers.get('Content-Disposition', '').lower()
+            
+            if post_resp.status_code == 200 and (is_excel or is_attachment):
                 # Determine extension based on content type or bytes
                 ext = '.xlsx'
                 if len(post_resp.content) > 0 and post_resp.content[:4] == b'\xd0\xcf\x11\xe0':
@@ -107,17 +137,18 @@ class MABaseScraper:
                     ext = '.xlsx'
                 else:
                     ext = '.xls' # fallback
-                    
-                filename = f"{dataset_name}_{report_type.lower()}_{year}{ext}"
-                filepath = os.path.join(output_dir, filename)
                 
+                # if the extension was resolved to xls, fix the filepath
+                if ext == '.xls':
+                    filepath = filepath[:-5] + ext
+                    
                 with open(filepath, 'wb') as f:
                     f.write(post_resp.content)
                 
-                print(f"    Saved to {filepath} ({len(post_resp.content)} bytes)")
+                print(f"    Saved ({len(post_resp.content)} bytes)")
             else:
-                print(f"    Failed to download for year {year}. Status: {post_resp.status_code}")
+                print(f"    Failed. HTTP: {post_resp.status_code}, Content-Type: {content_type}")
                 
             time.sleep(1) # Be nice to the server
             
-        print(f"[{dataset_name}] Completed downloading {len(years)} files.")
+        print(f"[{dataset_name}] Completed downloading {len(sample)} files.")

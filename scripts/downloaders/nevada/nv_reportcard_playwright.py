@@ -46,7 +46,7 @@ class NevadaReportCardScraper(BaseDownloader):
             
             # 1. Setup Network Interception
             def handle_response(response):
-                if "DIWAPI-NVReportCard/api/SummaryScores" in response.url or "DIWAPI-NVReportCard/api/RosterScores" in response.url:
+                if "DIWAPI-NVReportCard/api/" in response.url and response.request.resource_type in ["fetch", "xhr"]:
                     try:
                         data = response.json()
                         if not isinstance(data, list) or len(data) == 0:
@@ -63,7 +63,8 @@ class NevadaReportCardScraper(BaseDownloader):
                         # Decide where to save based on report type
                         out_dir = self.enroll_dir if 'student' in domain.lower() else self.scores_dir
                         
-                        filename = f"{domain}_{report_name}_org{org_id}.json".replace('/', '_')
+                        endpoint = response.url.split('api/')[1].split('?')[0]
+                        filename = f"{domain}_{endpoint}_{report_name}_org{org_id}.json".replace('/', '_')
                         filepath = out_dir / filename
                         
                         with open(filepath, "w") as f:
@@ -128,6 +129,14 @@ class NevadaReportCardScraper(BaseDownloader):
                                 self.logger.info(f"  -> Loading sub-report: {name}")
                                 items[i].click()
                                 page.wait_for_timeout(2500) # Wait for network request to fire and complete
+                                
+                                # Click "Detailed Report" links if they exist on this page
+                                detailed_links = page.locator("a:has-text('detailed report'), a:has-text('Detailed report')").all()
+                                for dl in detailed_links:
+                                    if dl.is_visible():
+                                        self.logger.info(f"    -> Clicking detailed report link")
+                                        dl.click()
+                                        page.wait_for_timeout(3000) # Wait for detailed API response
                 else:
                     self.logger.warning(f"Tab '{tab_name}' not found or not visible.")
 
