@@ -92,8 +92,8 @@ class NevadaEnrollmentDownloader(BaseDownloader):
     """
 
     STATE: str = "nevada"
-    CATEGORY: str = "enrollment"
-    URLS: list[str] = URLS["nevada"]["enrollment"]
+    CATEGORY: str = "enrollment_attendance"
+    URLS: list[str] = URLS["nevada"]["enrollment_attendance"]
 
     # ------------------------------------------------------------------
     # Public interface

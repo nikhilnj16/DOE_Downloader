@@ -64,8 +64,8 @@ class NevadaTeacherRecordsDownloader(BaseDownloader):
     """Download all Nevada teacher/educator records from Strapi CMS API."""
 
     STATE: str = "nevada"
-    CATEGORY: str = "teacher_records"
-    URLS: list[str] = URLS["nevada"]["teacher_records"]
+    CATEGORY: str = "teacher_staff"
+    URLS: list[str] = URLS["nevada"]["teacher_staff"]
 
     def download_all(self) -> None:
         self.logger.info("Starting Nevada teacher records download via Strapi CMS API.")

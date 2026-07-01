@@ -19,15 +19,23 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from config import MANIFEST_CSV, PIPELINE_LOG, LOGS_DIR
 
-# Manifest CSV column order
+# ---------------------------------------------------------------------------
+# Manifest CSV column order (Change 7)
+# ---------------------------------------------------------------------------
 MANIFEST_COLUMNS = [
     "timestamp",
     "state",
     "category",
-    "url",
-    "filename",
+    "subcategory",
+    "original_filename",
+    "source_url",
+    "local_path",
+    "drive_uploaded",
+    "drive_file_id",
+    "file_size_kb",
+    "year_range_detected",
     "status",
-    "filesize_kb",
+    "notes",
 ]
 
 
@@ -85,6 +93,13 @@ def log_download(
     filename: str,
     status: str,
     filesize_kb: float,
+    # New parameters (all optional for backward-compat with existing callers)
+    subcategory: str = "",
+    local_path: str = "",
+    drive_uploaded: bool = False,
+    drive_file_id: str = "",
+    year_range_detected: str = "",
+    notes: str = "",
 ) -> None:
     """
     Append a single download record to the manifest CSV.
@@ -93,12 +108,18 @@ def log_download(
 
     Parameters
     ----------
-    state       : str   e.g. "nevada"
-    category    : str   e.g. "test_scores"
-    url         : str   Source URL that was downloaded
-    filename    : str   Local filename that was saved
-    status      : str   "success" | "failed" | "skipped"
-    filesize_kb : float File size in kilobytes (0.0 on failure)
+    state               : str   e.g. "nevada"
+    category            : str   e.g. "assessments"
+    url                 : str   Source URL that was downloaded
+    filename            : str   Original filename as provided by the server
+    status              : str   "success" | "skipped_duplicate" | "failed"
+    filesize_kb         : float File size in kilobytes (0.0 on failure)
+    subcategory         : str   e.g. "by_race" (blank for non-assessment categories)
+    local_path          : str   Absolute local path where file was saved
+    drive_uploaded      : bool  True if successfully uploaded to Drive
+    drive_file_id       : str   Google Drive file ID after upload (blank if not uploaded)
+    year_range_detected : str   Parsed year range e.g. "2020-2023" (blank if not found)
+    notes               : str   Additional context (e.g. skip reason, error message)
     """
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -110,12 +131,18 @@ def log_download(
             writer.writeheader()
         writer.writerow(
             {
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
-                "state": state,
-                "category": category,
-                "url": url,
-                "filename": filename,
-                "status": status,
-                "filesize_kb": round(filesize_kb, 2),
+                "timestamp":           datetime.now(tz=timezone.utc).isoformat(),
+                "state":               state,
+                "category":            category,
+                "subcategory":         subcategory,
+                "original_filename":   filename,
+                "source_url":          url,
+                "local_path":          local_path,
+                "drive_uploaded":      drive_uploaded,
+                "drive_file_id":       drive_file_id,
+                "file_size_kb":        round(filesize_kb, 2),
+                "year_range_detected": year_range_detected,
+                "status":              status,
+                "notes":               notes,
             }
         )

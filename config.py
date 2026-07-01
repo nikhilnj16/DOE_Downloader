@@ -21,17 +21,70 @@ ROOT_DIR = Path(__file__).resolve().parent
 DATA_DIR = ROOT_DIR / "data"
 LOGS_DIR = ROOT_DIR / "logs"
 
-STATES = ["nevada", "massachusetts"]
-CATEGORIES = ["test_scores", "financials", "teacher_records", "enrollment", "suspensions"]
+STATES = ["nevada", "massachusetts", "alaska"]
 
-# Build path helpers:  DATA_DIR / state / "raw" / category, etc.
-def raw_dir(state: str, category: str) -> Path:
-    """Return the raw data directory for a given state and category."""
-    return DATA_DIR / state / "raw" / category
+
+# New primary category list (Change 2)
+CATEGORIES = ["assessments", "financials", "teacher_staff", "enrollment_attendance"]
+
+# Assessment sub-category breakdown (Change 2)
+ASSESSMENT_SUBCATEGORIES = {
+    "overall":    "overall",
+    "by_race":    "by_race",
+    "by_gender":  "by_gender",
+    "by_iep_504": "by_iep_504",
+    "by_ell":     "by_ell",
+}
+
+# ---------------------------------------------------------------------------
+# Pipeline behaviour flags (Change 2)
+# ---------------------------------------------------------------------------
+KEEP_ORIGINAL_FILENAME = True   # Never rename what the server provides
+SKIP_CLEANING = True            # Raw download only — no cleaning step
+ENABLE_DRIVE_UPLOAD = True      # Upload every downloaded file to Google Drive
+DRIVE_FOLDER_ID = ""            # Legacy single-folder ID (fill in manually)
+DUPLICATE_DETECTION = True      # Skip files whose year range is already covered
+
+# ---------------------------------------------------------------------------
+# Google Drive / service-account settings (Change 6)
+# ---------------------------------------------------------------------------
+GOOGLE_SERVICE_ACCOUNT_JSON = "credentials/service_account.json"
+DRIVE_ROOT_FOLDER_ID = ""       # Root Drive folder — fill in manually
+
+# ---------------------------------------------------------------------------
+# Build path helpers
+# ---------------------------------------------------------------------------
+
+def raw_dir(state: str, category: str, subcategory: str | None = None) -> Path:
+    """
+    Return the raw data directory for a given state, category, and optional subcategory.
+
+    New layout (Change 1):
+        data/{state}/{category}/                           (no subcategory)
+        data/{state}/{category}/{subcategory}/             (with subcategory)
+
+    Parameters
+    ----------
+    state       : str  e.g. "nevada"
+    category    : str  e.g. "assessments"
+    subcategory : str | None  e.g. "by_race" (optional)
+
+    Returns
+    -------
+    pathlib.Path
+    """
+    if subcategory:
+        return DATA_DIR / state / category / subcategory
+    return DATA_DIR / state / category
 
 
 def cleaned_dir(state: str, category: str) -> Path:
-    """Return the cleaned data directory for a given state and category."""
+    """
+    Return the cleaned data directory for a given state and category.
+
+    Cleaning is disabled (SKIP_CLEANING = True) but the helper is kept
+    for backward compatibility with any tooling that imports it.
+    """
     return DATA_DIR / state / "cleaned" / category
 
 
@@ -60,6 +113,10 @@ RETRY_STATUS_CODES = [429, 500, 502, 503, 504]
 
 # ---------------------------------------------------------------------------
 # Source URLs  —  URLS[state][category] = [list of URLs]
+#
+# Old category keys (test_scores, teacher_records, enrollment, suspensions)
+# are kept for backward compatibility with any existing scripts that import them.
+# New keys map to the updated category names.
 # ---------------------------------------------------------------------------
 URLS: dict[str, dict[str, list[str]]] = {
 
@@ -68,36 +125,40 @@ URLS: dict[str, dict[str, list[str]]] = {
     # -----------------------------------------------------------------------
     "nevada": {
 
-        "test_scores": [
-            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
+        # New category keys ---------------------------------------------------
+        "assessments": [
+            # NDE Strapi CMS upload API — single endpoint listing ALL uploaded files.
             # doe.nv.gov is a Next.js SPA; raw HTML does not contain file links.
-            # We query this API once, filter by test-score keywords, and download matches.
             # Covers: SBAC, ACT, NAA, NAEP, WIDA, science assessments, etc.
             "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
 
         "financials": [
-            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
-            # Covers: per-pupil expenditure, district budgets, fiscal reports, grants.
+            "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
+        ],
+
+        "teacher_staff": [
+            "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
+        ],
+
+        "enrollment_attendance": [
+            "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
+        ],
+
+        # Legacy keys (kept for backward compatibility) -----------------------
+        "test_scores": [
             "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
 
         "teacher_records": [
-            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
-            # Covers: educator licensure, teacher counts, staffing, NEPF data.
             "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
 
         "enrollment": [
-            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
-            # The doe.nv.gov site is a Next.js SPA; file links are not in raw HTML.
-            # We query this API once, filter by enrollment keywords, and download matches.
             "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
 
         "suspensions": [
-            # NDE Strapi CMS upload API — single endpoint that lists ALL uploaded files.
-            # Covers: discipline data, suspension reports, behavioral health data.
             "https://webapp-strapi-paas-prod-nde-001.azurewebsites.net/api/upload/files?pagination[pageSize]=10000",
         ],
     },
@@ -107,13 +168,19 @@ URLS: dict[str, dict[str, list[str]]] = {
     # -----------------------------------------------------------------------
     "massachusetts": {
 
-        "test_scores": [
-            # MCAS results
+        # New category keys ---------------------------------------------------
+        "assessments": [
+            # MCAS results page
             "https://www.doe.mass.edu/mcas/results.html",
-            # State report — MCAS achievement
+            # State report — MCAS achievement (all subgroups via dropdown)
             "https://profiles.doe.mass.edu/statereport/mcas.aspx",
             # SAT / AP participation
             "https://profiles.doe.mass.edu/statereport/sat.aspx",
+            # Alternate assessment (IEP students)
+            "https://profiles.doe.mass.edu/statereport/mcas_alt.aspx",
+            # ACCESS assessment (ELL students)
+            "https://profiles.doe.mass.edu/statereport/access.aspx",
+            "https://profiles.doe.mass.edu/statereport/accessreportingelements.aspx",
         ],
 
         "financials": [
@@ -123,23 +190,61 @@ URLS: dict[str, dict[str, list[str]]] = {
             "https://profiles.doe.mass.edu/statereport/finance.aspx",
         ],
 
-        "teacher_records": [
+        "teacher_staff": [
             # Educator counts and experience
             "https://profiles.doe.mass.edu/statereport/teacherdata.aspx",
             # Educator licensure
             "https://profiles.doe.mass.edu/statereport/teacherlicensure.aspx",
         ],
 
-        "enrollment": [
+        "enrollment_attendance": [
             # Enrollment by grade, school, district
+            "https://www.doe.mass.edu/infoservices/reports/enroll/",
+            "https://profiles.doe.mass.edu/statereport/enrollment.aspx",
+            # Suspensions / attendance / truancy
+            "https://profiles.doe.mass.edu/statereport/suspensions.aspx",
+            "https://profiles.doe.mass.edu/statereport/inschoolsuspensions.aspx",
+        ],
+
+        # Legacy keys (kept for backward compatibility) -----------------------
+        "test_scores": [
+            "https://www.doe.mass.edu/mcas/results.html",
+            "https://profiles.doe.mass.edu/statereport/mcas.aspx",
+            "https://profiles.doe.mass.edu/statereport/sat.aspx",
+        ],
+
+        "teacher_records": [
+            "https://profiles.doe.mass.edu/statereport/teacherdata.aspx",
+            "https://profiles.doe.mass.edu/statereport/teacherlicensure.aspx",
+        ],
+
+        "enrollment": [
             "https://www.doe.mass.edu/infoservices/reports/enroll/",
             "https://profiles.doe.mass.edu/statereport/enrollment.aspx",
         ],
 
         "suspensions": [
-            # In-school and out-of-school suspensions
             "https://profiles.doe.mass.edu/statereport/suspensions.aspx",
             "https://profiles.doe.mass.edu/statereport/inschoolsuspensions.aspx",
+        ],
+    },
+
+    # -----------------------------------------------------------------------
+    # Alaska
+    # -----------------------------------------------------------------------
+    "alaska": {
+        "assessments": [
+            "https://education.alaska.gov/assessments/results",
+            "https://education.alaska.gov/assessment-results/Statewide/StatewideResults",
+        ],
+        "financials": [
+            "https://education.alaska.gov/data-center",
+        ],
+        "teacher_staff": [
+            "https://education.alaska.gov/data-center",
+        ],
+        "enrollment_attendance": [
+            "https://education.alaska.gov/data-center",
         ],
     },
 }

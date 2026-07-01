@@ -4,11 +4,14 @@ scripts/utils/file_utils.py
 File-system utility functions for the education data pipeline.
 
 Provides:
-  - create_dir_structure()  : creates all raw/cleaned directories for every state+category
+  - create_dir_structure()  : creates all data directories for every state+category+subcategory
   - get_file_extension()    : detects extension from Content-Type or URL
   - safe_filename()         : converts a URL into a clean local filename
+  - parse_year_range()      : extracts (min_year, max_year) from a filename using regex
+  - is_duplicate()          : checks if a new file's year range is already covered
 """
 
+import logging
 import re
 import sys
 from pathlib import Path
@@ -18,7 +21,9 @@ import requests
 
 # Make sure config is importable when this script is run standalone.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from config import STATES, CATEGORIES, raw_dir, cleaned_dir
+from config import STATES, CATEGORIES, ASSESSMENT_SUBCATEGORIES, DATA_DIR
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Content-Type → file extension mapping
@@ -38,18 +43,32 @@ _CONTENT_TYPE_MAP: dict[str, str] = {
 
 def create_dir_structure() -> None:
     """
-    Create the full raw / cleaned directory tree for every state and category.
+    Create the full directory tree for every state, category, and subcategory.
 
-    The structure matches:
-        data/{state}/raw/{category}/
-        data/{state}/cleaned/{category}/
+    New layout (Change 1):
+        data/{state}/assessments/overall/
+        data/{state}/assessments/by_race/
+        data/{state}/assessments/by_gender/
+        data/{state}/assessments/by_iep_504/
+        data/{state}/assessments/by_ell/
+        data/{state}/financials/
+        data/{state}/teacher_staff/
+        data/{state}/enrollment_attendance/
 
     All directories are created idempotently (exist_ok=True).
     """
     for state in STATES:
         for category in CATEGORIES:
-            raw_dir(state, category).mkdir(parents=True, exist_ok=True)
-            cleaned_dir(state, category).mkdir(parents=True, exist_ok=True)
+            if category == "assessments":
+                # Create a subfolder for each assessment sub-category
+                for sub in ASSESSMENT_SUBCATEGORIES.values():
+                    target = DATA_DIR / state / category / sub
+                    target.mkdir(parents=True, exist_ok=True)
+                    logger.debug("Ensured directory: %s", target)
+            else:
+                target = DATA_DIR / state / category
+                target.mkdir(parents=True, exist_ok=True)
+                logger.debug("Ensured directory: %s", target)
 
 
 def get_file_extension(url: str, response: requests.Response | None = None) -> str:
@@ -127,3 +146,90 @@ def safe_filename(url: str) -> str:
     raw = re.sub(r"\.(xlsx|xls|csv|pdf|zip|html)$", "", raw, flags=re.IGNORECASE)
 
     return raw[:200]
+
+
+# ---------------------------------------------------------------------------
+# Duplicate detection (Change 3)
+# ---------------------------------------------------------------------------
+
+# Regex: matches 4-digit years in range 1990–2030.
+# Uses a simple pattern: 19[9]\d covers 1990-1999, 20[012]\d covers 2000-2029,
+# plus exactly 2030. The \b word-boundary prevents matching mid-number sequences.
+_YEAR_RE = re.compile(r"(?<!\d)(199\d|20[012]\d|2030)(?!\d)")
+
+
+def parse_year_range(filename: str) -> tuple[int, int] | None:
+    """
+    Extract a (min_year, max_year) tuple from a filename using regex.
+
+    Looks for all 4-digit years in the range 1990–2030 within *filename*.
+    Handles both full 4-digit (2020-2022) and abbreviated 2-digit suffixes
+    (2020-21 → treated as 2020-2021 if < current match).
+
+    Parameters
+    ----------
+    filename : str
+        The filename to parse (basename only, or full path string).
+
+    Returns
+    -------
+    tuple[int, int] | None
+        (min_year, max_year) if at least one year found; None otherwise.
+
+    Examples
+    --------
+    >>> parse_year_range("NV_Enrollment_2020-2022.xlsx")
+    (2020, 2022)
+    >>> parse_year_range("report.pdf")
+    None
+    """
+    stem = Path(filename).stem
+    matches = _YEAR_RE.findall(stem)
+    if not matches:
+        return None
+    years = [int(y) for y in matches]
+    return (min(years), max(years))
+
+
+def is_duplicate(
+    new_filename: str,
+    new_year_range: tuple[int, int] | None,
+    existing_files_list: list[str],
+) -> bool:
+    """
+    Return True if *new_filename* is fully covered by an existing file in the folder.
+
+    A file is considered a duplicate if its year range is completely contained
+    within the year range of an already-downloaded file of the same type.
+    """
+    if new_year_range is None:
+        return False
+
+    new_min, new_max = new_year_range
+    new_stem = Path(new_filename).stem
+    # Remove year groups from stem to get the 'fingerprint' of the file layout
+    new_fingerprint = _YEAR_RE.sub('', new_stem)
+    new_fingerprint = re.sub(r'[-_]+', '_', new_fingerprint).strip('_')
+
+    for existing in existing_files_list:
+        ex_range = parse_year_range(existing)
+        if ex_range is None:
+            continue
+        
+        ex_stem = Path(existing).stem
+        ex_fingerprint = _YEAR_RE.sub('', ex_stem)
+        ex_fingerprint = re.sub(r'[-_]+', '_', ex_fingerprint).strip('_')
+
+        # Only compare ranges if the base file characteristics (subgroup, grade, category) match
+        if ex_fingerprint == new_fingerprint:
+            ex_min, ex_max = ex_range
+            if ex_min <= new_min and ex_max >= new_max:
+                logger.info(
+                    "SKIP duplicate: '%s' (years %d-%d) already covered by '%s' (years %d-%d)",
+                    new_filename, new_min, new_max,
+                    Path(existing).name, ex_min, ex_max,
+                )
+                return True
+
+    return False
+
