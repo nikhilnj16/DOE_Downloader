@@ -57,24 +57,19 @@ DRIVE_ROOT_FOLDER_ID = ""       # Root Drive folder — fill in manually
 
 def raw_dir(state: str, category: str, subcategory: str | None = None) -> Path:
     """
-    Return the raw data directory for a given state, category, and optional subcategory.
-
-    New layout (Change 1):
-        data/{state}/{category}/                           (no subcategory)
-        data/{state}/{category}/{subcategory}/             (with subcategory)
+    Return the raw data directory for a given state and category.
+    The subcategory parameter is ignored to enforce a flat directory structure.
 
     Parameters
     ----------
     state       : str  e.g. "nevada"
     category    : str  e.g. "assessments"
-    subcategory : str | None  e.g. "by_race" (optional)
+    subcategory : str | None  (ignored)
 
     Returns
     -------
     pathlib.Path
     """
-    if subcategory:
-        return DATA_DIR / state / category / subcategory
     return DATA_DIR / state / category
 
 

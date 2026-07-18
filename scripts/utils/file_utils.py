@@ -21,7 +21,7 @@ import requests
 
 # Make sure config is importable when this script is run standalone.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from config import STATES, CATEGORIES, ASSESSMENT_SUBCATEGORIES, DATA_DIR
+from config import STATES, CATEGORIES, DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -43,32 +43,14 @@ _CONTENT_TYPE_MAP: dict[str, str] = {
 
 def create_dir_structure() -> None:
     """
-    Create the full directory tree for every state, category, and subcategory.
-
-    New layout (Change 1):
-        data/{state}/assessments/overall/
-        data/{state}/assessments/by_race/
-        data/{state}/assessments/by_gender/
-        data/{state}/assessments/by_iep_504/
-        data/{state}/assessments/by_ell/
-        data/{state}/financials/
-        data/{state}/teacher_staff/
-        data/{state}/enrollment_attendance/
-
-    All directories are created idempotently (exist_ok=True).
+    Create the primary category directories flatly under data/{state}/
+    idempotently (exist_ok=True).
     """
     for state in STATES:
         for category in CATEGORIES:
-            if category == "assessments":
-                # Create a subfolder for each assessment sub-category
-                for sub in ASSESSMENT_SUBCATEGORIES.values():
-                    target = DATA_DIR / state / category / sub
-                    target.mkdir(parents=True, exist_ok=True)
-                    logger.debug("Ensured directory: %s", target)
-            else:
-                target = DATA_DIR / state / category
-                target.mkdir(parents=True, exist_ok=True)
-                logger.debug("Ensured directory: %s", target)
+            target = DATA_DIR / state / category
+            target.mkdir(parents=True, exist_ok=True)
+            logger.debug("Ensured directory: %s", target)
 
 
 def get_file_extension(url: str, response: requests.Response | None = None) -> str:

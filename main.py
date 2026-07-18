@@ -274,12 +274,7 @@ def run_downloader(state: str, category: str, subcategory: str = "") -> dict:
 
         # Snapshot file count in output dirs BEFORE running
         from config import DATA_DIR
-        if category == "assessments" and subcategory and subcategory != "all":
-            out_dirs = [DATA_DIR / state / category / subcategory]
-        elif category == "assessments":
-            out_dirs = [DATA_DIR / state / category / sub for sub in ASSESSMENT_SUBCATEGORIES]
-        else:
-            out_dirs = [DATA_DIR / state / category]
+        out_dirs = [DATA_DIR / state / category]
         files_before = sum(
             len([f for f in d.glob("*") if f.is_file()])
             for d in out_dirs if d.exists()

@@ -94,3 +94,6 @@ $RECYCLE.BIN/
 *.swo
 *~
 \#*\#
+
+# System-generated metadata / cache
+brain/
