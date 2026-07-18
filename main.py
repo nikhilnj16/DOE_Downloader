@@ -81,6 +81,45 @@ _DOWNLOADER_REGISTRY: dict[tuple[str, str, str], tuple[str, str, str | None]] = 
     ("alaska", "financials", ""):            ("scripts.downloaders.alaska.ak_downloader", "AlaskaDownloader", "download_financials"),
     ("alaska", "teacher_staff", ""):         ("scripts.downloaders.alaska.ak_downloader", "AlaskaDownloader", "download_teacher_staff"),
     ("alaska", "enrollment_attendance", ""): ("scripts.downloaders.alaska.ak_downloader", "AlaskaDownloader", "download_enrollment_attendance"),
+
+    # ---- Ohio: assessments ----
+    ("ohio", "assessments", "overall"):    ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_assessments"),
+    ("ohio", "assessments", "by_race"):    ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_assessments"),
+    ("ohio", "assessments", "by_gender"):  ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_assessments"),
+    ("ohio", "assessments", "by_iep_504"): ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_assessments"),
+    ("ohio", "assessments", "by_ell"):     ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_assessments"),
+    ("ohio", "assessments", "all"):        ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_assessments"),
+
+    # ---- Ohio: other categories ----
+    ("ohio", "financials", ""):            ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_financials"),
+    ("ohio", "teacher_staff", ""):         ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_teacher_staff"),
+    ("ohio", "enrollment_attendance", ""): ("scripts.downloaders.ohio.oh_downloader", "OhioDownloader", "download_enrollment_attendance"),
+
+    # ---- New Jersey: assessments (per subcategory) ----
+    ("new_jersey", "assessments", "overall"):    ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_assessments"),
+    ("new_jersey", "assessments", "by_race"):    ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_assessments"),
+    ("new_jersey", "assessments", "by_gender"):  ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_assessments"),
+    ("new_jersey", "assessments", "by_iep_504"): ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_assessments"),
+    ("new_jersey", "assessments", "by_ell"):     ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_assessments"),
+    ("new_jersey", "assessments", "all"):        ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_assessments"),
+
+    # ---- New Jersey: other categories ----
+    ("new_jersey", "financials", ""):            ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_financials"),
+    ("new_jersey", "teacher_staff", ""):         ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_teacher_staff"),
+    ("new_jersey", "enrollment_attendance", ""): ("scripts.downloaders.new_jersey.nj_downloader", "NewJerseyDownloader", "download_enrollment_attendance"),
+
+    # ---- Tennessee: assessments (per subcategory) ----
+    ("tennessee", "assessments", "overall"):    ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_assessments"),
+    ("tennessee", "assessments", "by_race"):    ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_assessments"),
+    ("tennessee", "assessments", "by_gender"):  ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_assessments"),
+    ("tennessee", "assessments", "by_iep_504"): ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_assessments"),
+    ("tennessee", "assessments", "by_ell"):     ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_assessments"),
+    ("tennessee", "assessments", "all"):        ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_assessments"),
+
+    # ---- Tennessee: other categories ----
+    ("tennessee", "financials", ""):            ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_financials"),
+    ("tennessee", "teacher_staff", ""):         ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_teacher_staff"),
+    ("tennessee", "enrollment_attendance", ""): ("scripts.downloaders.tennessee.tn_downloader", "TennesseeDownloader", "download_enrollment_attendance"),
 }
 
 

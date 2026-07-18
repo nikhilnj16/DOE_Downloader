@@ -21,7 +21,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 DATA_DIR = ROOT_DIR / "data"
 LOGS_DIR = ROOT_DIR / "logs"
 
-STATES = ["nevada", "massachusetts", "alaska"]
+STATES = ["nevada", "massachusetts", "alaska", "ohio", "new_jersey", "tennessee"]
 
 
 # New primary category list (Change 2)
@@ -245,6 +245,42 @@ URLS: dict[str, dict[str, list[str]]] = {
         ],
         "enrollment_attendance": [
             "https://education.alaska.gov/data-center",
+        ],
+    },
+
+    # -----------------------------------------------------------------------
+    # Ohio
+    # -----------------------------------------------------------------------
+    "ohio": {
+        "assessments": [
+            "https://reportcard.education.ohio.gov/download",
+        ],
+        "financials": [
+            "https://education.ohio.gov/Topics/Finance-and-Funding/Finance-Data-and-Information",
+        ],
+        "teacher_staff": [
+            "https://education.ohio.gov/Topics/Data/Frequently-Requested-Data/Staff-Data",
+        ],
+        "enrollment_attendance": [
+            "https://education.ohio.gov/Topics/Data/Frequently-Requested-Data/Enrollment-Data",
+        ],
+    },
+
+    # -----------------------------------------------------------------------
+    # New Jersey
+    # -----------------------------------------------------------------------
+    "new_jersey": {
+        "assessments": [
+            "https://www.nj.gov/education/assessment/results/reports/",
+        ],
+        "financials": [
+            "https://www.nj.gov/education/doedata/",
+        ],
+        "teacher_staff": [
+            "https://www.nj.gov/education/doedata/cs/",
+        ],
+        "enrollment_attendance": [
+            "https://www.nj.gov/education/doedata/enr/",
         ],
     },
 }
